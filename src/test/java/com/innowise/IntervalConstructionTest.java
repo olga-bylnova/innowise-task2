@@ -7,6 +7,11 @@ import java.util.List;
 
 public class IntervalConstructionTest {
     @Test
+    public void testIntervalConstructionNullArgsArray() {
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> Intervals.intervalConstruction(null));
+    }
+    @Test
     public void testIntervalConstructionIncorrectNumberOfArguments() {
         String[] args = {"m2", "A", "B", "dsc"};
 
