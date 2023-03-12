@@ -1,5 +1,6 @@
 package com.innowise;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +12,7 @@ public class Intervals {
     private static final String E = "E";
     private static final String F = "F";
     private static final String G = "G";
-    private static final Map<String, Integer> NOTES_SEMITONES_TO_NEXT_NOTE_MAP =
+    private static final Map<String, Integer> NATURAL_NOTES_TO_SEMITONES_MAP =
             Map.ofEntries(
                     Map.entry(C, 2),
                     Map.entry(D, 2),
@@ -82,25 +83,25 @@ public class Intervals {
         int intervalSemitoneCount = INTERVALS_TO_SEMITONES_DEGREES_MAP.get(intervalName)[0];
         int intervalDegreeCount = INTERVALS_TO_SEMITONES_DEGREES_MAP.get(intervalName)[1] - 1;
 
-        String nextNoteName = getNextNoteNameByDegreeCount(firstNoteName,
+        String secondNoteName = getSecondNoteNameByDegreeCount(firstNoteName,
                 intervalDegreeCount, intervalOrder);
 
-        int nextNoteSemitoneCount = getSemitoneCountBetweenNotes(firstNoteName,
-                nextNoteName,
+        int secondNoteSemitoneCount = getNoteSemitoneCount(firstNoteName,
+                secondNoteName,
                 firstNoteAccidentals,
                 intervalSemitoneCount,
                 intervalOrder);
 
-        String nextNoteAccidentals = getNextNoteAccidentals(nextNoteSemitoneCount);
+        String secondNoteAccidentals = getSecondNoteAccidentals(secondNoteSemitoneCount);
 
-        return nextNoteName + nextNoteAccidentals;
+        return secondNoteName + secondNoteAccidentals;
     }
 
     private static void argumentCheck(String intervalName,
                                       String firstNoteName,
                                       String firstNoteAccidentals,
                                       String intervalOrder) {
-        if (!NOTES_SEMITONES_TO_NEXT_NOTE_MAP.containsKey(firstNoteName)
+        if (!NATURAL_NOTES_TO_SEMITONES_MAP.containsKey(firstNoteName)
                 || !ACCIDENTALS_TO_SEMITONES_ASC_MAP.containsKey(firstNoteAccidentals)) {
             throw new IllegalArgumentException(INVALID_NOTE_ARGUMENT_EXCEPTION);
         }
@@ -114,11 +115,11 @@ public class Intervals {
         }
     }
 
-    private static String getNextNoteAccidentals(Integer nextNoteSemitoneCount) {
+    private static String getSecondNoteAccidentals(Integer secondNoteSemitoneCount) {
         return accidentals
                 .entrySet()
                 .stream()
-                .filter(entry -> nextNoteSemitoneCount.equals(entry.getValue()))
+                .filter(entry -> secondNoteSemitoneCount.equals(entry.getValue()))
                 .map(Map.Entry::getKey)
                 .findFirst().get();
     }
@@ -131,45 +132,101 @@ public class Intervals {
         return noteWithAccidentals.substring(0, 1);
     }
 
-    private static String getNextNoteNameByDegreeCount(String firstNote, int degreeCount,
-                                                       String intervalBuildingOrder) {
-        int nextIntervalNoteIndex;
+    private static String getSecondNoteNameByDegreeCount(String firstNote, int degreeCount,
+                                                         String intervalBuildingOrder) {
+        int secondIntervalNoteIndex;
         int firstIntervalNoteIndex = NOTES.indexOf(firstNote);
 
         if (intervalBuildingOrder.equals(DESCENDING_ORDER)) {
             degreeCount = -degreeCount;
         }
-        nextIntervalNoteIndex = Math.floorMod(firstIntervalNoteIndex + degreeCount, NOTES.size());
-        return NOTES.get(nextIntervalNoteIndex);
+        secondIntervalNoteIndex = Math.floorMod(firstIntervalNoteIndex + degreeCount, NOTES.size());
+        return NOTES.get(secondIntervalNoteIndex);
     }
 
     private static int getSemitoneCountBetweenNotes(String firstNote,
-                                                    String nextNote,
-                                                    String firstNoteAccidentals,
-                                                    int intervalSemitoneCount,
+                                                    String secondNote,
                                                     String intervalBuildingOrder) {
         int firstNoteIndex = NOTES.indexOf(firstNote);
-        int nextNoteIndex = NOTES.indexOf(nextNote);
+        int secondNoteIndex = NOTES.indexOf(secondNote);
 
-        int minIndex = Math.min(firstNoteIndex, nextNoteIndex);
-        int maxIndex = Math.max(firstNoteIndex, nextNoteIndex);
+        int minIndex = Math.min(firstNoteIndex, secondNoteIndex);
+        int maxIndex = Math.max(firstNoteIndex, secondNoteIndex);
 
         int semitoneCount = 0;
         for (int i = minIndex; i < maxIndex; i++) {
-            semitoneCount += NOTES_SEMITONES_TO_NEXT_NOTE_MAP.get(NOTES.get(i));
+            semitoneCount += NATURAL_NOTES_TO_SEMITONES_MAP.get(NOTES.get(i));
         }
 
-        if ((intervalBuildingOrder.equals(ASCENDING_ORDER) && firstNoteIndex > nextNoteIndex)
-                || (intervalBuildingOrder.equals(DESCENDING_ORDER) && firstNoteIndex < nextNoteIndex)) {
+        if ((intervalBuildingOrder.equals(ASCENDING_ORDER) && firstNoteIndex > secondNoteIndex)
+                || (intervalBuildingOrder.equals(DESCENDING_ORDER) && firstNoteIndex < secondNoteIndex)) {
             semitoneCount = OCTAVE_SEMITONE_COUNT - semitoneCount;
         }
 
-        Integer firstNoteSemitoneCount = accidentals.get(firstNoteAccidentals);
+        return semitoneCount;
+    }
 
-        return firstNoteSemitoneCount + semitoneCount - intervalSemitoneCount;
+    private static int getNoteSemitoneCount(String firstNote,
+                                            String secondNote,
+                                            String firstNoteAccidentals,
+                                            int intervalSemitoneCount,
+                                            String intervalBuildingOrder) {
+        int semitoneCountBetweenNotes = getSemitoneCountBetweenNotes(firstNote, secondNote, intervalBuildingOrder);
+        int firstNoteSemitoneCount = accidentals.get(firstNoteAccidentals);
+        return firstNoteSemitoneCount + semitoneCountBetweenNotes - intervalSemitoneCount;
     }
 
     public static String intervalIdentification(String[] args) {
-        return null;
+        if (args.length != 2 && args.length != 3) {
+            throw new IllegalArgumentException(INVALID_ARGUMENT_COUNT_EXCEPTION);
+        }
+        String firstNoteName = parseNoteName(args[0]);
+        String firstNoteAccidentals = parseNoteAccidentals(args[0]);
+
+        String secondNoteName = parseNoteName(args[1]);
+        String secondNoteAccidentals = parseNoteAccidentals(args[1]);
+
+        String intervalOrder = args.length == 3 ? args[2] : ASCENDING_ORDER;
+
+        accidentals = intervalOrder.equals(ASCENDING_ORDER) ? ACCIDENTALS_TO_SEMITONES_ASC_MAP
+                : ACCIDENTALS_TO_SEMITONES_DESC_MAP;
+
+        int intervalDegreeCount = getIntervalDegreeCountByNotes(firstNoteName, secondNoteName, intervalOrder);
+        int intervalSemitoneCount = getIntervalSemitoneCountByNotes(firstNoteName, firstNoteAccidentals,
+                secondNoteName, secondNoteAccidentals, intervalOrder);
+
+        Integer[] intervalSemitoneDegreeArray = {intervalSemitoneCount, intervalDegreeCount};
+
+        return INTERVALS_TO_SEMITONES_DEGREES_MAP
+                .entrySet()
+                .stream()
+                .filter(entry -> Arrays.equals(intervalSemitoneDegreeArray, entry.getValue()))
+                .map(Map.Entry::getKey)
+                .findFirst().get();
+    }
+
+    private static int getIntervalSemitoneCountByNotes(String firstNoteName,
+                                                       String firstNoteAccidentals,
+                                                       String secondNoteName,
+                                                       String secondNoteAccidentals,
+                                                       String intervalOrder) {
+        int naturalNoteSemitoneCount = getSemitoneCountBetweenNotes(firstNoteName, secondNoteName, intervalOrder);
+        int firstNoteSemitoneCount = accidentals.get(firstNoteAccidentals);
+        int secondNoteSemitoneCount = accidentals.get(secondNoteAccidentals);
+        return naturalNoteSemitoneCount + firstNoteSemitoneCount - secondNoteSemitoneCount;
+    }
+
+    private static int getIntervalDegreeCountByNotes(String firstNote,
+                                                     String secondNote,
+                                                     String intervalBuildingOrder) {
+        int firstNoteIndex = NOTES.indexOf(firstNote);
+        int secondNoteIndex = NOTES.indexOf(secondNote);
+
+        int intervalDegreeCount = Math.abs(firstNoteIndex - secondNoteIndex);
+        if ((intervalBuildingOrder.equals(ASCENDING_ORDER) && firstNoteIndex > secondNoteIndex)
+                || (intervalBuildingOrder.equals(DESCENDING_ORDER) && firstNoteIndex < secondNoteIndex)) {
+            intervalDegreeCount = NOTES.size() - intervalDegreeCount;
+        }
+        return intervalDegreeCount + 1;
     }
 }
